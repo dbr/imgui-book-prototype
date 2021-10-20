@@ -176,9 +176,10 @@ fn main(){
                             md::Event::End(md::Tag::CodeBlock(_)) => {
                                 let filename = chap.path.as_ref().unwrap().to_string_lossy();
                                 let cleaned = filename.chars().map(|c| if c.is_alphabetic(){ c } else { '_' }).collect::<String>();
+                                let ident = format!("{}_{}_{}", cleaned, offset.start, offset.end);
 
                                 codeblocks.push(ExampleSnippet {
-                                    ident: format!("{}_{}_{}", cleaned, offset.start, offset.end),
+                                    ident,
                                     code: contents.clone().unwrap(),
                                     tags: start_tag.clone(),
                                 });

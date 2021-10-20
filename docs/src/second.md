@@ -35,7 +35,7 @@ Compile and run, but expect a panic:
 ```imgui-example,should_panic
 use imgui::im_str;
 ui.text(im_str!("Hello world!"));
-// FIXME: panic!();
+panic!();
 ```
 
 Don't compile or run this:
@@ -58,11 +58,11 @@ if ui.button(im_str!("Hi")) {
 ```
 
 Same image again:
-![image][imgui-example-basic-button]
+
+![image][basic-button]
 
 
-More usefully, we can hide the output and display it elsewhere where in the document:
-
+More usefully, we can hide the output and display it elsewhere where in the document. There is a hidden code block here.
 
 ```imgui-example,name=more-useful,hide_output
 use imgui::im_str;
@@ -71,8 +71,8 @@ if ui.button(im_str!("Hi")) {
 }
 ```
 
-And the output of that is:
-![The output][imgui-example-more-useful]
+And the output is displayed shortly after:
+![The output][more-useful]
 
 Similarly we could use `hide` to hide the code block also.
 

@@ -71,10 +71,10 @@ fn process_examples(chap: &mut mdbook::book::Chapter, image_dir: &std::path::Pat
             ParsingState::InCodeBlock(ref start_tag, ref mut cur_ident) => {
                 // Look for end of code block
                 match p {
-                    md::Event::End(md::Tag::CodeBlock(cb)) => {
+                    md::Event::End(md::Tag::CodeBlock(_)) => {
+                        // FIXME: Deduplicate this with build.rs
                         let filename = chap.path.as_ref().unwrap().to_string_lossy();
                         let cleaned = filename.chars().map(|c| if c.is_alphabetic(){ c } else { '_' }).collect::<String>();
-
                         let ident = format!("{}_{}_{}", cleaned, offset.start, offset.end);
 
                         for a in &meta {
@@ -85,38 +85,55 @@ fn process_examples(chap: &mut mdbook::book::Chapter, image_dir: &std::path::Pat
 
                         for m in &meta {
                             if cur_ident.as_ref() == Some(&m.ident) {
-                                // Processor communicates via stdout,
-                                // so we suppress any prints etc in
-                                // examples to avoid weird errors
-                                let _print_gag = gag::Gag::stdout().unwrap();
-                                rdr::generate(&m.ident, image_dir);
+                                // Generate the image!
+                                if !m.tags.no_run {
+                                    // Processor communicates via stdout,
+                                    // so we suppress any prints etc in
+                                    // examples to avoid weird errors
+                                    let _print_gag = gag::Gag::stdout().unwrap();
+
+                                    // Actually run example snippet
+                                    let result = std::panic::catch_unwind(|| {
+                                        rdr::generate(&m.ident, image_dir);
+                                    });
+                                    if m.tags.should_panic {
+                                        if result.is_err() {
+                                            // Good
+                                        } else {
+                                            // TODO: Better error (source line in file?)
+                                            panic!("Example {} expected to panic but did not", &m.ident);
+                                        }
+                                    }
+                                }
+
                                 if !m.tags.hide_code {
                                     new_events.push(md::Event::Start(md::Tag::CodeBlock(md::CodeBlockKind::Fenced("rust".into()))));
                                     new_events.push(md::Event::Text(format!("{}\n", m.code).into()));
                                     new_events.push(md::Event::End(md::Tag::CodeBlock(md::CodeBlockKind::Fenced("rust".into()))));
                                 }
 
-                                // Output image anchor link `[snippet_123_ident]: ../_generated/example.png`
-                                let rel_image_path = format!("{}/{}",rel_image_path, m.output_filename());
-                                new_events.push(
-                                    md::Event::Html(
-                                        format!("[{}]: {}", &m.ident, &rel_image_path)
-                                            .into()
-                                    )
-                                );
-
-                                if !m.tags.hide_output {
-
-                                    new_events.push(md::Event::Start(md::Tag::Paragraph));
-                                    let img = md::Tag::Image(
-                                        md::LinkType::Inline,
-                                        rel_image_path.clone().into(),
-                                        "".into(),
+                                if !m.tags.no_run {
+                                    // Output image anchor link `[snippet_123_ident]: ../_generated/example.png`
+                                    let rel_image_path = format!("{}/{}",rel_image_path, m.output_filename());
+                                    new_events.push(
+                                        md::Event::Html(
+                                            format!(
+                                                "[{}]: {}",
+                                                &m.tags.name.as_ref().unwrap_or(&ident),
+                                                &rel_image_path
+                                            ).into()
+                                        )
                                     );
-                                    new_events.push(md::Event::Start(img.clone()));
-                                    new_events.push(md::Event::End(img.clone()));
 
-                                    new_events.push(md::Event::End(md::Tag::Paragraph));
+                                    if !m.tags.hide_output {
+                                        // pulldown_cmark_to_cmark doesn't
+                                        // deal with LinkType::Reference
+                                        // etc currently, so we misuse
+                                        // Html to output raw markdown
+                                        new_events.push(md::Event::Start(md::Tag::Paragraph));
+                                        new_events.push(md::Event::Html(format!("![][{}]\n", &&m.tags.name.as_ref().unwrap_or(&ident)).into()));
+                                        new_events.push(md::Event::End(md::Tag::Paragraph));
+                                    }
                                 }
                             }
                         }
