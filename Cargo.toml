@@ -8,17 +8,25 @@ edition = "2018"
 
 build = "build.rs"
 
+[[bin]]
+name = "imgui-book-processor"
+path = "src/book_proc.rs"
+
 [dependencies]
 tiny-skia = "0.5"
 imgui-software-renderer = {git = "https://github.com/dbr/imgui-rs.git", rev = "2c831d74c75443d1a50f925956a436e8295d54d3"}
 imgui = {git = "https://github.com/dbr/imgui-rs.git", rev = "2c831d74c75443d1a50f925956a436e8295d54d3"}
-
+mdbook = {version = "0.4", default-features = false}
+pulldown-cmark = "0.8.0"
+pulldown-cmark-to-cmark = "6"
+anyhow = "1"
+semver = "1"
 serde_json = "1.0"
 serde = {version = "1.0", features = ["derive"]}
 imgui-book-shared = {path = "imgui-book-shared"}
-
+gag = "1.0"
 [build-dependencies]
-pulldown-cmark = "0.7.0"
+pulldown-cmark = "0.8.0"
 mdbook = {version = "0.4", default-features = false}
 handlebars = "4.0"
 serde_json = "1.0"

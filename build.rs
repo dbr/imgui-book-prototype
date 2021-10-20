@@ -7,45 +7,6 @@ enum ParsingState {
     InCodeBlock(ExampleTags, Option<String>),
 }
 
-
-fn tags_from_string(raw: String) -> Option<ExampleTags> {
-    let mut tags = ExampleTags {
-        // Default values, updated from tags momentarily
-        ignore: false,
-        no_run: false,
-        should_panic: false,
-        hide_code: false,
-        hide_output: false,
-        name: None,
-    };
-
-    let chunks: Vec<&str> = raw.split(",").collect();
-
-    if chunks.len() > 0 && &chunks[0] != &"imgui-example" {
-        return None;
-    } else {
-        for t in chunks.iter().skip(1) {
-            match t {
-                &"ignore" => tags.ignore = true,
-                &"no_run" => tags.no_run = true,
-                &"should_panic" => tags.should_panic = true,
-                &"hide_code" => tags.hide_code = true,
-                &"hide_output" => tags.hide_output = true,
-                &"hide" => {tags.hide_output = true; tags.hide_code = true},
-                unknown => {
-                    if let Some(name) = unknown.strip_prefix("name=") {
-                        tags.name = Some(name.to_string());
-                    } else {
-                        panic!("Unknown tag {}", unknown)
-                    }
-                },
-            }
-        }
-
-        Some(tags)
-    }
-}
-
 struct Template<'a> {
     example: &'a ExampleSnippet,
 }
@@ -56,7 +17,7 @@ impl Template<'_> {
             return Ok(())
         }
 
-        writeln!(&mut out, "imgui_example_{ident}();", ident=self.example.ident)
+        writeln!(&mut out, "imgui_example_{ident}(directory);", ident=self.example.ident)
     }
     fn to_snippet(&self, out: impl std::io::Write) -> Result<(), std::io::Error> {
         if self.example.tags.ignore {
@@ -75,7 +36,7 @@ impl Template<'_> {
         };
 
         let template = r#"
-fn imgui_example_{{ident}}() {
+fn imgui_example_{{ident}}(directory: &std::path::PathBuf) {
     let width = 500;
     let height = 500;
 
@@ -145,7 +106,7 @@ fn imgui_example_{{ident}}() {
         r.render(&mut px, draw_data, font_pixmap.as_ref());
 
         // Save output
-        let fname = format!("{{ident}}_{}.png", frame);
+        let fname = directory.join(&format!("{{ident}}.png"));
         dbg!(&fname);
         px.save_png(fname).unwrap();
     }
@@ -198,7 +159,7 @@ fn main(){
                         // Look for start of fenced (triple-backtick) code block
                         match p {
                             md::Event::Start(md::Tag::CodeBlock(md::CodeBlockKind::Fenced(tag))) => {
-                                if let Some(tags) = tags_from_string(tag.to_string()) {
+                                if let Some(tags) = imgui_book_shared::tags_from_string(tag.to_string()) {
                                     // Check if it's start of a valid imgui-example blocks
                                     state = ParsingState::InCodeBlock(tags, None);
                                 } else {
@@ -242,14 +203,14 @@ fn main(){
         Template{example: cb}.to_snippet(&out_file).unwrap();
     }
 
-    writeln!(&out_file, "\n\npub fn generate_all() {{").unwrap();
+    writeln!(&out_file, "\n\npub fn generate_all(directory: &std::path::PathBuf) {{").unwrap();
     for cb in &codeblocks {
         Template{example: cb}.invoke_snippet(&out_file).unwrap();
     }
     writeln!(&out_file, "}}").unwrap();
 
     let indent = "    ";
-    writeln!(&out_file, "\n\npub fn generate(name: &str) {{").unwrap();
+    writeln!(&out_file, "\n\npub fn generate(name: &str, directory: &std::path::PathBuf) {{").unwrap();
     writeln!(&out_file, "{indent}match name {{", indent=indent).unwrap();
     for cb in &codeblocks {
         writeln!(&out_file, r#"{indent}{indent}"{name}" => {{ "#, name=cb.ident, indent=indent).unwrap();

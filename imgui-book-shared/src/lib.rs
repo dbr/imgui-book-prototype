@@ -19,6 +19,44 @@ pub struct ExampleTags {
     pub name: Option<String>,
 }
 
+pub fn tags_from_string(raw: String) -> Option<ExampleTags> {
+    let mut tags = ExampleTags {
+        // Default values, updated from tags momentarily
+        ignore: false,
+        no_run: false,
+        should_panic: false,
+        hide_code: false,
+        hide_output: false,
+        name: None,
+    };
+
+    let chunks: Vec<&str> = raw.split(",").collect();
+
+    if chunks.len() > 0 && &chunks[0] != &"imgui-example" {
+        return None;
+    } else {
+        for t in chunks.iter().skip(1) {
+            match t {
+                &"ignore" => tags.ignore = true,
+                &"no_run" => tags.no_run = true,
+                &"should_panic" => tags.should_panic = true,
+                &"hide_code" => tags.hide_code = true,
+                &"hide_output" => tags.hide_output = true,
+                &"hide" => {tags.hide_output = true; tags.hide_code = true},
+                unknown => {
+                    if let Some(name) = unknown.strip_prefix("name=") {
+                        tags.name = Some(name.to_string());
+                    } else {
+                        panic!("Unknown tag {}", unknown)
+                    }
+                },
+            }
+        }
+
+        Some(tags)
+    }
+}
+
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct ExampleSnippet {
@@ -30,6 +68,12 @@ pub struct ExampleSnippet {
 
     // Flags like no_run
     pub tags: ExampleTags,
+}
+
+impl ExampleSnippet {
+    pub fn output_filename(&self) -> String {
+        format!("{}.png", &self.ident)
+    }
 }
 
 use serde::ser::{Serialize, SerializeStruct, Serializer};
